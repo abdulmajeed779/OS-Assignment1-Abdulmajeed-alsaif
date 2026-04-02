@@ -29,6 +29,10 @@ class Process implements Runnable {
     private int burstTime; // Total time the process requires to complete (in milliseconds)
     private int timeQuantum; // Time slice (time quantum) allowed per CPU access (in milliseconds)
     private int remainingTime; // Time left for the process to finish its execution
+    // Feature 3: Add fields to track waiting time
+    private long arrivalTime;
+    private long totalWaitingTime;
+
     private int priority; // Feature 1: Added priority attribute for each process
 
     // Constructor to initialize the process with name, burst time, and time quantum
@@ -38,6 +42,10 @@ class Process implements Runnable {
         this.timeQuantum = timeQuantum;
         this.remainingTime = burstTime; // Initially, remaining time is equal to the burst time
         this.priority = priority; // Feature 1: Added priority
+        // Feature 3 Initializations
+        this.arrivalTime = System.currentTimeMillis();
+        this.totalWaitingTime = 0;
+
     }
 
     // This method will be called when the thread for this process is started
@@ -148,6 +156,26 @@ class Process implements Runnable {
     public boolean isFinished() {
         return remainingTime <= 0;
     }
+
+    // Getter for arrival time
+    public long getArrivalTime() {
+        return arrivalTime;
+    }
+
+    // Setter for arrival time
+    public void setArrivalTime(long time) {
+        this.arrivalTime = time;
+    }
+
+    // Add waiting time
+    public void addWaitingTime(long time) {
+        this.totalWaitingTime += time;
+    }
+
+    // Getter for total waiting time
+    public long getTotalWaitingTime() {
+        return totalWaitingTime;
+    }
 }
 
 public class SchedulerSimulation {
@@ -250,7 +278,8 @@ public class SchedulerSimulation {
             }
             System.out.println(Colors.BRIGHT_WHITE + "]" + Colors.RESET);
             System.out.println(Colors.BOLD + Colors.MAGENTA + "└" + "─".repeat(79) + Colors.RESET + "\n");
-
+            // Feature3: record time start execution
+            long startTime = System.currentTimeMillis();
             // Feature 2: Increment the counter each time a process starts running
             contextSwitches++;
             // Start the thread, which will run the process for one time quantum
@@ -260,13 +289,18 @@ public class SchedulerSimulation {
                 // Wait for the thread to finish its time quantum before continuing to the next
                 // process
                 currentThread.join();
+
             } catch (InterruptedException e) {
                 System.out.println("Main thread interrupted.");
             }
-
+            // Feature3: record time execution finishes
+            long endTime = System.currentTimeMillis();
             // Retrieve the process associated with the thread from the map
             Process process = processMap.get(currentThread);
-
+            // Feature3: Calculate waiting time before execution
+            process.addWaitingTime(startTime - process.getArrivalTime());
+            // Feature3: update Arrival Time for the next round
+            process.setArrivalTime(endTime);
             // Check if the process is not finished
             if (!process.isFinished()) {
                 // If the process still has remaining time, check if there are more processes in
@@ -288,6 +322,15 @@ public class SchedulerSimulation {
         System.out.println(Colors.BOLD + Colors.BRIGHT_GREEN +
                 "╔════════════════════════════════════════════════════════════════════════════════╗" +
                 Colors.RESET);
+        // Display summary of waiting times
+        System.out.println("\nProcess Summary:");
+        System.out.println("Process | Burst Time | Waiting Time");
+
+        for (Process p : processMap.values()) {
+            System.out.println(p.getName() + " | " +
+                    p.getBurstTime() + " | " +
+                    p.getTotalWaitingTime() + "ms");
+        }
         System.out.println(Colors.BOLD + Colors.BRIGHT_GREEN + "║" + Colors.RESET +
                 Colors.BG_GREEN + Colors.WHITE + Colors.BOLD +
                 "                     ✓  ALL PROCESSES COMPLETED  ✓                            " +
